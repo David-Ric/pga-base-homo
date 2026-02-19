@@ -1,4 +1,4 @@
-@import '../../../styles/colors.scss';
+@use '../../../styles/colors.scss' as *;
 
 #sidebar {
   height: 100% !important;

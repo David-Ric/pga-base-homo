@@ -51,7 +51,7 @@ import logoSankhya from '../../assets/logosankhya.png';
 import logoAlyne from '../../assets/logo-dark.png';
 import Modal from 'react-bootstrap/Modal';
 import { stringify } from 'querystring';
-import { placeholderCSS } from 'react-select/dist/declarations/src/components/Placeholder';
+//import { placeholderCSS } from 'react-select/dist/declarations/src/components/Placeholder';
 import ProgressBar from 'react-bootstrap/ProgressBar';
 import { BsCheck2Circle, BsEyeSlash, BsHandIndexThumb } from 'react-icons/bs';
 import { IoMdCheckmarkCircleOutline } from 'react-icons/io';
@@ -1625,12 +1625,11 @@ export default function PedidoVendas() {
                       { width: '10%', textAlign: 'right' },
                     ]}
                   >
-                    {produto.produto?.aliIpi
+                    {ufCliente !== 'CE' && produto.produto?.aliIpi
                       ? `${moeda(
                           produto.valTotal * (produto.produto?.aliIpi / 100)
                         )}`
-                      : moeda(produto.valTotal)}
-                    {/* {moeda(produto.valTotal)} */}
+                      : moeda(0)}
                   </Text>
                   <Text
                     style={[
@@ -1638,13 +1637,12 @@ export default function PedidoVendas() {
                       { width: '10%', textAlign: 'right' },
                     ]}
                   >
-                    {produto.produto?.aliIpi
+                    {ufCliente !== 'CE' && produto.produto?.aliIpi
                       ? `${moeda(
                           produto.valTotal +
                             produto.valTotal * (produto.produto?.aliIpi / 100)
                         )}`
                       : moeda(produto.valTotal)}
-                    {/* {moeda(produto.valTotal)} */}
                   </Text>
                 </View>
               ))}
@@ -1702,12 +1700,11 @@ export default function PedidoVendas() {
                       { width: '10%', textAlign: 'right' },
                     ]}
                   >
-                    {produto.produto?.aliIpi
+                    {ufCliente !== 'CE' && produto.produto?.aliIpi
                       ? `${moeda(
                           produto.valTotal * (produto.produto?.aliIpi / 100)
                         )}`
-                      : moeda(produto.valTotal)}
-                    {/* {moeda(produto.valTotal)} */}
+                      : moeda(0)}
                   </Text>
                   <Text
                     style={[
@@ -1715,13 +1712,12 @@ export default function PedidoVendas() {
                       { width: '10%', textAlign: 'right' },
                     ]}
                   >
-                    {produto.produto?.aliIpi
+                    {ufCliente !== 'CE' && produto.produto?.aliIpi
                       ? `${moeda(
                           produto.valTotal +
                             produto.valTotal * (produto.produto?.aliIpi / 100)
                         )}`
                       : moeda(produto.valTotal)}
-                    {/* {moeda(produto.valTotal)} */}
                   </Text>
                 </View>
               ))}
@@ -1797,7 +1793,9 @@ export default function PedidoVendas() {
                     { width: '50%', textAlign: 'right' },
                   ]}
                 >
-                  {pedidosanteriores ? (
+                  {ufCliente === 'CE' ? (
+                    <>{moeda(0)}</>
+                  ) : pedidosanteriores ? (
                     <>{moeda(IpiEscolhido - valorPedidoSelecionado)}</>
                   ) : (
                     <>{moeda(IpiEscolhido - valorTotalNovo)}</>
@@ -1819,8 +1817,12 @@ export default function PedidoVendas() {
                     { width: '50%', textAlign: 'right' },
                   ]}
                 >
-                  {pedidosanteriores ? (
-                    <>{moeda(IpiEscolhido)}</>
+                  {ufCliente === 'CE' ? (
+                    pedidosanteriores ? (
+                      <>{moeda(valorPedidoSelecionado)}</>
+                    ) : (
+                      <>{moeda(valorTotalNovo)}</>
+                    )
                   ) : (
                     <>{moeda(IpiEscolhido)}</>
                   )}{' '}
@@ -4348,7 +4350,6 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
 
           setCodEmpresa(String(empresaSelectData[0].empresaId));
           codEmpresa = String(empresaSelectData[0].empresaId);
-
           console.log('tabela 1 do cliente', codEmpresa);
 
           if (clienteData.endereco !== '') {
@@ -4427,7 +4428,7 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
     } else {
       await api
         .get(`/api/Parceiro/${idCliente}`)
-        .then((response) => {
+        .then(async (response) => {
           console.log('dados parceiro', response.data);
           setsaldo(response.data.sc);
           saldo = response.data.sc;
@@ -4474,7 +4475,6 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
           );
           setcnpj(response.data.cnpj_Cpf);
           setCodEmpresa(response.data.tabelaPrecoParceiro[0].empresaId);
-
           codEmpresa = response.data.tabelaPrecoParceiro[0].empresaId;
           console.log('tabela 1 do cliente', codEmpresa);
           if (response.data.endereco != '') {
@@ -5376,6 +5376,8 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
           });
           console.log('itensVindoAPi 2', filteredItens);
           console.log('itensVindoAPi Pedido', itensPedidoSelecionadoList);
+
+          
 
           const novoArrayComAtualizacoes = itensPedidoSelecionadoList.map(
             (itemPedido) => {
@@ -12085,7 +12087,15 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
                                 </h1>
                               </div>
                               <div className="blocoValores">
-                                <h2>Valor do Pedido C / Ipi:</h2>
+                                <OverlayTrigger
+                                  placement={"top"}
+                                  delay={{ show: 100, hide: 250 }}
+                                  overlay={
+                                    <Tooltip>Parceiros com origem no CE, não aplicam IPI.</Tooltip>
+                                  }
+                                >
+                                  <h2>Valor do Pedido C / Ipi:</h2>
+                                </OverlayTrigger>
                                 <h1
                                   style={
                                     somaTotal == 0
@@ -12093,7 +12103,7 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
                                       : { color: '#0000FF' }
                                   }
                                 >
-                                  R$ {moeda(valorTotalComIpi)}
+                                  R$ {moeda(ufCliente === 'CE' ? somaTotal : valorTotalComIpi)}
                                 </h1>
                               </div>
 
@@ -13303,7 +13313,7 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
                                                       SetarQuantidade();
                                                     }}
                                                   >
-                                                    {item.produto.aliIpi}
+                                                    {ufCliente === 'CE' ? 0 : item.produto.aliIpi}
                                                   </td>
                                                   <td
                                                     style={{
@@ -13371,13 +13381,11 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
                                                       SetarQuantidade();
                                                     }}
                                                   >
-                                                    {item.produto.aliIpi
+                                                    {ufCliente !== 'CE' && item.produto.aliIpi
                                                       ? `${moeda(
                                                           item.valTotal +
                                                             item.valTotal *
-                                                              (item.produto
-                                                                .aliIpi /
-                                                                100)
+                                                              (item.produto.aliIpi / 100)
                                                         )}`
                                                       : moeda(item.valTotal)}
                                                   </td>

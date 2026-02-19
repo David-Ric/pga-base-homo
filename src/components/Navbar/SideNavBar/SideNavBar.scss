@@ -1,4 +1,4 @@
-@import '../../../styles/colors.scss';
+@use '../../../styles/colors.scss' as *;
 .side-nav-container {
   background-color: var(--dark);
   width: 380px;
