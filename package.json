@@ -2,6 +2,7 @@
   "name": "pga-vite",
   "version": "0.0.0",
   "private": true,
+  "homepage": "/pga",
   "type": "module",
   "scripts": {
     "dev": "vite",
