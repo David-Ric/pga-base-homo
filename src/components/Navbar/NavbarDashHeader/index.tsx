@@ -1189,7 +1189,7 @@ const NavbarDashHeader = () => {
             </div>
             {isMobile ? (
               <>
-                <h1 className="versao2"> Versão: 1.1.048</h1>
+                <h1 className="versao2"> Versão: 1.1.049</h1>
               </>
             ) : (
               <></>
@@ -1297,7 +1297,7 @@ const NavbarDashHeader = () => {
             )}
             {isMobile ? (
               <>
-                <h1 className="versao2"> Versão: 1.1.048</h1>
+                <h1 className="versao2"> Versão: 1.1.049</h1>
               </>
             ) : (
               <></>
