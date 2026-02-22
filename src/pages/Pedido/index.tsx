@@ -640,6 +640,7 @@ export default function PedidoVendas() {
   let [paginaList, setPaginaList] = useState(1);
   let [codCliente, setCodCliente] = useState('');
   let [tipoNegocia, setTipoNegocia] = useState('');
+  const [condPagtoManual, setCondPagtoManual] = useState(false);
   let [tipPed, setTipPed] = useState('1');
   let [descTipo, setDescTipo] = useState('');
   let [naturezaPadraoEdit, setNaturezaPadraoEdit] = useState('');
@@ -723,11 +724,14 @@ export default function PedidoVendas() {
             .replace(/[\u0300-\u036f]/g, '')
             .trim()
             .toUpperCase();
-        const descNorm = normalize(descricao);
-        const item = arr.find(
-          (x: any) =>
-            normalize(x?.descricao ?? x?.Descricao) === descNorm
+        const alvo = normalize(descricao);
+        const matches = arr.filter(
+          (x: any) => normalize(x?.descricao ?? x?.Descricao) == alvo
         );
+        const item =
+          matches.find((x: any) => x?.NaturezaPadrao) ??
+          matches[0] ??
+          null;
         setNaturezaPadraoEdit(
           item?.NaturezaPadrao ? String(item.NaturezaPadrao).trim() : ''
         );
@@ -944,7 +948,7 @@ export default function PedidoVendas() {
 
   useEffect(() => {
     const valor = String(tipoNegocia ?? '');
-    if (valor === '') {
+    if (valor === '' || valor === '0') {
       carregarNaturezaPadraoPorDescricao('');
       return;
     }
@@ -956,7 +960,7 @@ export default function PedidoVendas() {
       (valor === '1' ? 'À VISTA' : descTipo);
     carregarNaturezaPadraoPorDescricao(label);
   }, [tipoNegocia, OptinosNegocia, descTipo]);
- 
+
   useEffect(() => {
     const checkOnlineStatus = () => {
       const statusValue = localStorage.getItem('@Portal/Status');
@@ -2097,6 +2101,8 @@ export default function PedidoVendas() {
     tipoNegociacaoPedidoSelecionadoId,
     setTipoNegociacaoPedidoSelecionadoId,
   ] = useState(0);
+  let [naturezaPadraoPedidoSelecionado, setNaturezaPadraoPedidoSelecionado] =
+    useState('');
   let [valorPedidoSelecionado, setValorPedidoSelecionado] = useState(0);
   let [itensPedidoSelecionado, setItensPedidoSelecionado] = useState<
     iItemPedidoVenda[]
@@ -2116,6 +2122,35 @@ export default function PedidoVendas() {
   //====variaveis transitorias=================================//
 
   let [produtoescolhido, setProdutoescolhido] = useState('');
+
+  useEffect(() => {
+    const valor = String(tipoNegociacaoPedidoSelecionadoId ?? '');
+    if (valor === '' || valor === '0') {
+      setNaturezaPadraoPedidoSelecionado('');
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(
+        '@Portal/tipoNegociacaoNaturezaPadrao'
+      );
+      const arr = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(arr)) {
+        const idNum = Number(valor);
+        const match = arr.filter(
+          (x: any) => Number(x?.id ?? x?.Id) === idNum
+        );
+        const found =
+          match.find((x: any) => x?.NaturezaPadrao) ?? match[0] ?? null;
+        setNaturezaPadraoPedidoSelecionado(
+          found?.NaturezaPadrao ? String(found.NaturezaPadrao).trim() : ''
+        );
+      } else {
+        setNaturezaPadraoPedidoSelecionado('');
+      }
+    } catch {
+      setNaturezaPadraoPedidoSelecionado('');
+    }
+  }, [tipoNegociacaoPedidoSelecionadoId]);
 
   //=============================================================//
   const formataData = (date: string) => {
@@ -2746,7 +2781,7 @@ export default function PedidoVendas() {
       .post(
         `/api/Sankhya/ReceberDados?tabela=TipoNegociacao&vendedorId=${vendedorCod}`
       )
-      .then((response) => {
+      .then(async (response) => {
         console.log(response.data);
         setLoading(false);
 
@@ -2759,11 +2794,66 @@ export default function PedidoVendas() {
           setTabelarro2('Erro ao receber dados para a tabela TipoNegociacao');
         }
 
+        await LoginSankhya(0);
+        await SalvarNaturezaPadraoTipoNegociacao(vendedorCod);
         receberDadosSankhyaParceiro();
       })
       .catch((error) => {
         setLoading(false);
       });
+  }
+  async function SalvarNaturezaPadraoTipoNegociacao(
+    codVend: string | number
+  ) {
+    const sql = `SELECT 
+         CPL.SUGTIPNEGSAID AS Id, 
+         RTRIM(LTRIM(TPV.DESCRTIPVENDA)) AS Descricao, 
+         TPV.DHALTER AS AtualizadoEm, 
+         CAST(NAT.CODNAT AS VARCHAR) + ' - ' + NAT.DESCRNAT AS NaturezaPadrao 
+       FROM TGFCPL CPL 
+       LEFT JOIN ( 
+         SELECT 
+           CODTIPVENDA, 
+           DESCRTIPVENDA, 
+           MAX(DHALTER) AS DHALTER 
+         FROM TGFTPV 
+         GROUP BY CODTIPVENDA, DESCRTIPVENDA 
+       ) TPV ON TPV.CODTIPVENDA = CPL.SUGTIPNEGSAID 
+       JOIN TGFPAR PAR ON PAR.CODPARC = CPL.CODPARC 
+       LEFT JOIN TGFPPG PPG ON PPG.CODTIPVENDA = TPV.CODTIPVENDA 
+       LEFT JOIN TGFNAT NAT ON NAT.CODNAT = PPG.CODNATPAD 
+       WHERE PAR.CODVEND = ${codVend} 
+         AND PAR.ATIVO = 'S' 
+         AND PAR.CLIENTE = 'S'
+         AND NAT.CODNAT = 110102 
+       GROUP BY 
+         CPL.SUGTIPNEGSAID, 
+         RTRIM(LTRIM(TPV.DESCRTIPVENDA)), 
+         TPV.DHALTER, 
+         NAT.CODNAT, 
+         NAT.DESCRNAT`;
+    const sqlEncoded = encodeURIComponent(sql);
+    await api
+      .post(`/api/Sankhya/DadosDashSankhya?sql=${sqlEncoded}`)
+      .then((response) => {
+        const rows = response?.data?.responseBody?.rows || [];
+        const data = Array.isArray(rows)
+          ? rows.map((r: any) => ({
+              id: Array.isArray(r) ? r[0] : r?.Id ?? r?.ID ?? r?.id,
+              descricao: Array.isArray(r) ? r[1] : r?.Descricao ?? '',
+              atualizadoEm: Array.isArray(r) ? r[2] : r?.AtualizadoEm ?? '',
+              NaturezaPadrao:
+                Array.isArray(r) ? r[3] : r?.NaturezaPadrao ?? null,
+            }))
+          : [];
+        try {
+          localStorage.setItem(
+            '@Portal/tipoNegociacaoNaturezaPadrao',
+            JSON.stringify(data)
+          );
+        } catch {}
+      })
+      .catch(() => {});
   }
   async function receberDadosSankhyaParceiro() {
     setSucess(30);
@@ -4291,9 +4381,6 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
 
           setOptinosNegocia(options);
           OptinosNegocia = options;
-          carregarNaturezaPadraoPorDescricao(
-            String(tiponegociacaoData?.descricao ?? '')
-          );
         }
       } catch (error) {
         console.error('Erro ao obter o cliente:', error);
@@ -4314,9 +4401,6 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
 
           setOptinosNegocia(options);
           OptinosNegocia = options;
-          carregarNaturezaPadraoPorDescricao(
-            String(response.data.descTipoNegociacao ?? '')
-          );
         })
         .catch((error) => {
           console.log('Ocorreu um erro');
@@ -4333,8 +4417,6 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
     setTipoEmpresaSelect([]);
     tipoEmpresaSelect = [];
     setOptinosEmpresa([]);
-
-    setTipoNegocia('');
 
     if (isMobile) {
       try {
@@ -4395,9 +4477,15 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
 
           setOptinosNegocia(options);
           OptinosNegocia = options;
-          carregarNaturezaPadraoPorDescricao(
-            String(clienteData.descTipoNegociacao ?? '')
-          );
+
+          if (
+            !condPagtoManual &&
+            clienteData.tipoNegociacao &&
+            String(clienteData.tipoNegociacao) !== '0'
+          ) {
+            setTipoNegocia(String(clienteData.tipoNegociacao));
+            tipoNegocia = String(clienteData.tipoNegociacao);
+          }
 
           const empresaSelectData = await tabelaPrecoParceiroStore.getAll();
 
@@ -4420,8 +4508,6 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
 
           console.log('dados do cliente', clienteData);
           setcnpj(clienteData.cnpj_Cpf);
-          setTipoNegocia(clienteData.tipoNegociacao);
-          tipoNegocia = clienteData.tipoNegociacao;
           setLc(clienteData.lc);
           lc = clienteData.lc;
           setTipoEmpresaSelect(clienteData.tabelaPrecoParceiro);
@@ -4546,9 +4632,16 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
 
           setOptinosNegocia(options);
           OptinosNegocia = options;
+
+          if (
+            !condPagtoManual &&
+            response.data.tipoNegociacao &&
+            String(response.data.tipoNegociacao) !== '0'
+          ) {
+            setTipoNegocia(String(response.data.tipoNegociacao));
+            tipoNegocia = String(response.data.tipoNegociacao);
+          }
           console.log('dados do cliente', clienteSelecionado);
-          setTipoNegocia(response.data.tipoNegociacao);
-          tipoNegocia = response.data.tipoNegociacao;
           setLc(response.data.lc);
           lc = response.data.lc;
           setTipoEmpresaSelect(response.data.tabelaPrecoParceiro);
@@ -10986,6 +11079,14 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
                               >
                                 {tipoNegociacaoPedidoSelecionado}
                               </h1>
+                              {naturezaPadraoPedidoSelecionado && (
+                                <h1 className="super-sub-texto">
+                                  Natureza Padrão:{' '}
+                                  <span style={{ color: '#2031ed' }}>
+                                    {naturezaPadraoPedidoSelecionado}
+                                  </span>
+                                </h1>
+                              )}
                             </div>
                             <div className="divisaoCentral">
                               <h1 className="super-sub-texto">
@@ -11679,20 +11780,19 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
                                     aria-label=""
                                     value={tipoNegocia}
                                     onChange={(e) => {
+                                    setCondPagtoManual(true);
                                       setTipoPagamento(e.target.value);
                                       setTipoNegocia(e.target.value);
                                       tipoNegocia = e.target.value;
                                       tipoPagamento = e.target.value;
-                                      const label =
-                                        (e.target as HTMLSelectElement).options[
-                                          (e.target as HTMLSelectElement)
-                                            .selectedIndex
-                                        ].text;
-                                      carregarNaturezaPadraoPorDescricao(label);
+                                      const opt = (e.target as HTMLSelectElement).options[
+                                        (e.target as HTMLSelectElement).selectedIndex
+                                      ];
                                       console.log(
-                                        'tipo escolhido',
-                                        tipoPagamento
+                                        'Cond. Pagamento selecionada - tipo de Natureza:',
+                                        opt?.text
                                       );
+                                    carregarNaturezaPadraoPorDescricao(opt?.text || '');
                                     }}
                                   >
                                     {OptinosNegocia.map((tipo) => (
@@ -11707,20 +11807,19 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
                                     className="form-select select inputparceiro  campo-select"
                                     aria-label=""
                                     onChange={(e) => {
+                                    setCondPagtoManual(true);
                                       setTipoPagamento(e.target.value);
                                       setTipoNegocia(e.target.value);
                                       tipoNegocia = e.target.value;
                                       tipoPagamento = e.target.value;
-                                      const label =
-                                        (e.target as HTMLSelectElement).options[
-                                          (e.target as HTMLSelectElement)
-                                            .selectedIndex
-                                        ].text;
-                                      carregarNaturezaPadraoPorDescricao(label);
+                                      const opt = (e.target as HTMLSelectElement).options[
+                                        (e.target as HTMLSelectElement).selectedIndex
+                                      ];
                                       console.log(
-                                        'tipo escolhido',
-                                        tipoPagamento
+                                        'Cond. Pagamento selecionada - tipo de Natureza:',
+                                        opt?.text
                                       );
+                                    carregarNaturezaPadraoPorDescricao(opt?.text || '');
                                     }}
                                   >
                                     <option value={tipoNegocia}>
@@ -11732,7 +11831,7 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
                               </div>
                             </div>
                             <div className="bloco-input bloco-natureza-padrao-pedido" style={{ width: '100%', marginTop: 8 }}>
-                              <p className="title-input" style={{ fontSize: 12 }}>Natureza Padrão</p>
+                              <p className="title-input" style={{ fontSize: 12 }}>Natureza Padrão:</p>
                               <input
                                 id="naturezaPadraoEdit"
                                 className="form-control select inputparceiro"
@@ -14209,6 +14308,14 @@ WHERE PRO.CODPROD <> 0 AND PRO.USOPROD IN ('V','R')`;
                     >
                       {tipoNegociacaoPedidoSelecionado}
                     </h1>
+                    {naturezaPadraoPedidoSelecionado && (
+                      <h1 className="super-sub-texto">
+                        Natureza Padrão:{' '}
+                        <span style={{ color: '#2031ed' }}>
+                          {naturezaPadraoPedidoSelecionado}
+                        </span>
+                      </h1>
+                    )}
                   </div>
                   <div className="divisaoCentral">
                     <h1 className="super-sub-texto">Tipo de pedido: </h1>

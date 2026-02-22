@@ -485,7 +485,9 @@
     "Implementações Realizadas": [],
     "Correções Realizadas": [
       "Correção da visualização do relatorio detalhado Vendas x meta dos consultores(Acompanhamento de vendas)", 
-      "melhoria na busca do stastus online/offline, agora a cada 5 minutos é verificado o status da conexão e atualizado o status no header do app"
+      "melhoria na busca do stastus online/offline, agora a cada 5 minutos é verificado o status da conexão e atualizado o status no header do app",
+      "Na tela de pedido, clientes com origem no CE nao apliam IPI",
+      "Preenchendo natureza padrão ao selecionar a cond. pgto."
     ]
   }
 

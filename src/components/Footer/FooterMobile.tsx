@@ -1845,7 +1845,8 @@ async function popularProd(produto: iproduto[]) {
        LEFT JOIN TGFNAT NAT ON NAT.CODNAT = PPG.CODNATPAD 
        WHERE PAR.CODVEND = ${codVend} 
          AND PAR.ATIVO = 'S' 
-         AND PAR.CLIENTE = 'S' 
+         AND PAR.CLIENTE = 'S'
+         AND NAT.CODNAT = 110102 
        GROUP BY 
          CPL.SUGTIPNEGSAID, 
          RTRIM(LTRIM(TPV.DESCRTIPVENDA)), 

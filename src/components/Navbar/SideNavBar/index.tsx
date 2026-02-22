@@ -857,7 +857,6 @@ export default function SideNavBar() {
   }
   function handleCloseMensageSankhya() {
     setShowMensageSankhya(false);
-   //window.location.reload();
   }
 
   useEffect(() => {
@@ -1336,7 +1335,8 @@ export default function SideNavBar() {
        LEFT JOIN TGFNAT NAT ON NAT.CODNAT = PPG.CODNATPAD 
        WHERE PAR.CODVEND = ${codVend} 
          AND PAR.ATIVO = 'S' 
-         AND PAR.CLIENTE = 'S' 
+         AND PAR.CLIENTE = 'S'
+         AND NAT.CODNAT = 110102 
        GROUP BY 
          CPL.SUGTIPNEGSAID, 
          RTRIM(LTRIM(TPV.DESCRTIPVENDA)), 
@@ -1607,6 +1607,7 @@ export default function SideNavBar() {
           setTabelarro9('Erro ao receber dados para a tabela Titulo');
         }
         if (erroSankhya == false) {
+          window.location.reload();
         }
       })
       .catch((error) => {
